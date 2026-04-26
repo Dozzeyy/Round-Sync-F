@@ -1,4 +1,4 @@
-# Round Sync - Rclone for Android
+# Round Sync F - Rclone for Android (Fork of Round Sync)
 [![license: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/Dozzeyy/Round-Sync-F/blob/master/LICENSE) [![Latest Downloads](https://img.shields.io/github/downloads/Dozzeyy/round-sync-f/latest/total
 )](https://github.com/Dozzeyy/Round-Sync-F/releases) [![GitHub release](https://img.shields.io/github/v/release/Dozzeyy/Round-Sync-F?include_prereleases)](https://github.com/Dozzeyy/Round-Sync-F/releases/latest)
 [![Documentation](https://img.shields.io/badge/Documentation-roundsync.com-4aad4e)](https://roundsync.com) [![supportive flags](https://img.shields.io/badge/support-🇺🇦_🏳️‍⚧_🏳️‍🌈-4aad4e)](https://roundsync.com)
@@ -7,7 +7,7 @@
 A cloud file manager, powered by rclone.
 Visit [https://roundsync.com](https://roundsync.com) for more information!
 
-
+This project is fork of Round Sync App available on https://github.com/newhinton/Round-Sync. This app supports latest RClone version of 1.73.0. which means Filen cloud storage is supported in this app. Also added OLED Dark Theme to change the look of the app.
 ## Screenshots
 <table>
   <tr style="border:none">
