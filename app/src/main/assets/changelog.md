@@ -1,3 +1,6 @@
+### 1.0.0
+* Initial release of Round Sync F
+
 ### 1.12.0
 * **New:** Support for accessing cloud files from other apps (SAF DocumentProvider)
 * **New:** Support for all DocumentProviders
