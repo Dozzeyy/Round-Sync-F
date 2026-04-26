@@ -25,10 +25,6 @@ This project is fork of Round Sync App available on https://github.com/newhinton
 
 
 ## Features
-|                                                            Cloud Access                                                             |                                    256 Bit Encryption<sup>[1](https://rclone.org/crypt/#file-encryption)</sup>                                     |                                                         Integrated Experience                                                         |
-|:-----------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------:|
-| <img src="https://github.com/Dozzeyy/Round-Sync-F/blob/master/docs/cloud-computing.png?raw=true" alt="Cloud Access" width="144" />  | <img src="https://github.com/Dozzeyy/Round-Sync-F/blob/master/docs/locked-padlock.png?raw=true" alt="256 Bit End-to-End Encryption" width="108" /> | <img src="https://github.com/Dozzeyy/Round-Sync-F/blob/master/docs/smartphone.png?raw=true" alt="Integrated Experience" width="132"/> |
-|                                             Use your cloud storage like a local folder.                                             |                                         Keep your files private on any cloud provider with crypt remotes.                                          |                                  Don't give up features or comfort just because it runs on a phone.                                   |
 
 - **File Management** (list, view, download, upload, move, rename, delete files and folders)
 - **Streaming** (Stream media files, serve files and directories over FTP, HTTP, WebDAV or DLNA)
@@ -39,6 +35,7 @@ This project is fork of Round Sync App available on https://github.com/newhinton
 - **Storage Access Framework (SAF)** ([see docs](https://roundsync.com/usage/saf.html)) for SD card and USB device access.
 - **Intentservice** to start tasks via third party apps!
 - **Task Management** to allow regular runs of your important tasks!
+- **OLED Dark Theme** that changes the look of the app if your phone has OLED Display
 
 
 ## Installation
