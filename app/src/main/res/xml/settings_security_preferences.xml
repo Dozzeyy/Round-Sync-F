@@ -1,0 +1,12 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="@string/pref_header_security">
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="@string/pref_key_biometric_lock"
+            android:summary="@string/pref_biometric_lock_summary"
+            android:title="@string/pref_biometric_lock_title" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -47,21 +47,26 @@ class PermissionFragment : Fragment() {
     fun updateVisibilities() {
         if(mPermissionManager.grantedStorage()) {
             binding.cardStorage.visibility = View.GONE
+        } else {
+            binding.cardStorage.visibility = View.VISIBLE
         }
         if(mPermissionManager.grantedAlarms()) {
             binding.cardAlarms.visibility = View.GONE
+        } else {
+            binding.cardAlarms.visibility = View.VISIBLE
         }
         if(mPermissionManager.grantedNotifications()) {
             binding.cardNotifications.visibility = View.GONE
+        } else {
+            binding.cardNotifications.visibility = View.VISIBLE
         }
         if(mPermissionManager.grantedBatteryOptimizationExemption()) {
             binding.cardBatteryOptimizations.visibility = View.GONE
+        } else {
+            binding.cardBatteryOptimizations.visibility = View.VISIBLE
         }
 
-        if(mPermissionManager.grantedStorage() &&
-            mPermissionManager.grantedNotifications() &&
-            mPermissionManager.grantedBatteryOptimizationExemption() &&
-            mPermissionManager.grantedStorage()) {
+        if(mPermissionManager.hasAllPermissions()) {
             (requireActivity() as MainActivity).startRemotesFragment()
         }
     }

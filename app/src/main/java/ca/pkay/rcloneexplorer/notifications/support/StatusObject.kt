@@ -10,10 +10,12 @@ import java.util.concurrent.TimeUnit
 class StatusObject(var mContext: Context){
 
     private val TAG = "StatusObject"
-    var notificationPercent: Int = 0
-    var notificationContent: String = ""
+    @JvmField @Volatile var notificationPercent: Int = 0
+    @JvmField @Volatile var notificationContent: String = ""
+    @Volatile var speedString: String = ""
     var notificationBigText = ArrayList<String>()
     var mErrorList = ArrayList<ErrorObject>()
+    private val mStatsLock = Any()
     var mStats = JSONObject()
     var mLogline = JSONObject()
 
@@ -21,7 +23,7 @@ class StatusObject(var mContext: Context){
     var lastItemAverageSpeed = 0L
 
     fun getSpeed(): String {
-        return Formatter.formatFileSize(mContext, mStats.optLong("speed", 0)) + "/s"
+        return speedString
     }
 
     /**
@@ -40,41 +42,49 @@ class StatusObject(var mContext: Context){
     }
 
     fun getSize(): String {
-        return Formatter.formatFileSize(mContext, mStats.optLong("bytes", 0))
+        synchronized(mStatsLock) {
+            return Formatter.formatFileSize(mContext, mStats.optLong("bytes", 0))
+        }
     }
 
     fun getTotalSize(): String {
-        return Formatter.formatFileSize(mContext, mStats.optLong("totalBytes", 0))
+        synchronized(mStatsLock) {
+            return Formatter.formatFileSize(mContext, mStats.optLong("totalBytes", 0))
+        }
     }
 
     fun getPercentage(): Double {
-        return mStats.optLong("bytes", 0).toDouble() / mStats.optLong("totalBytes", 0) * 100
+        synchronized(mStatsLock) {
+            val total = mStats.optLong("totalBytes", 0)
+            if (total == 0L) return 0.0
+            return mStats.optLong("bytes", 0).toDouble() / total * 100
+        }
     }
 
     fun getTransfers(): Int {
-        return mStats.optInt("transfers", 0)
+        synchronized(mStatsLock) {
+            return mStats.optInt("transfers", 0)
+        }
     }
 
     fun getTotalTransfers(): Int {
-        return mStats.optInt("totalTransfers", 0)
+        synchronized(mStatsLock) {
+            return mStats.optInt("totalTransfers", 0)
+        }
     }
 
     fun getDeletions(): Int {
-        return mStats.optInt("deletes", 0) + mStats.optInt("deletedDirs", 0)
+        synchronized(mStatsLock) {
+            return mStats.optInt("deletes", 0) + mStats.optInt("deletedDirs", 0)
+        }
     }
 
     fun getErrorMessage(): String {
-        if(mLogline.has("msg") && mLogline.getString("level") == "error") {
-            return mLogline.getString("msg")
-        }
-        return ""
+        return mLogline.optString("msg", "")
     }
 
     fun getErrorObject(): String {
-        if(mLogline.has("msg") && mLogline.getString("level") == "error") {
-            return mLogline.optString("object", "")
-        }
-        return ""
+        return mLogline.optString("object", "")
     }
 
     fun parseLoglineToStatusObject(logLine: JSONObject) {
@@ -90,7 +100,9 @@ class StatusObject(var mContext: Context){
         if(logLine.has("stats")) {
             clearObject()
             mLogline = logLine
-            mStats = mLogline.getJSONObject("stats")
+            synchronized(mStatsLock) {
+                mStats = mLogline.getJSONObject("stats")
+            }
 
             //available stats:
             //bytes,checks,deletedDirs,deletes,elapsedTime,errors,eta,fatalError,renames,retryError
@@ -135,7 +147,8 @@ class StatusObject(var mContext: Context){
                 }
             }
 
-            val speed = getSpeed()
+            val speed = Formatter.formatFileSize(mContext, mStats.optLong("speed", 0)) + "/s"
+            speedString = speed
             val size = getSize()
             val allsize = getTotalSize()
             val percent: Double = getPercentage()

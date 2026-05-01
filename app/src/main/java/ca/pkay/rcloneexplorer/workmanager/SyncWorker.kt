@@ -26,6 +26,7 @@ import ca.pkay.rcloneexplorer.notifications.SyncServiceNotifications.Companion.G
 import ca.pkay.rcloneexplorer.notifications.support.StatusObject
 import ca.pkay.rcloneexplorer.util.FLog
 import ca.pkay.rcloneexplorer.util.SyncLog
+import ca.pkay.rcloneexplorer.util.TransferTracker
 import ca.pkay.rcloneexplorer.util.WifiConnectivitiyUtil
 import kotlinx.serialization.json.Json
 import org.json.JSONException
@@ -200,6 +201,7 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
                             statusObject.notificationPercent,
                             ongoingNotificationID
                         ))
+                        TransferTracker.updateTransfer(ongoingNotificationID.toString(), mTitle, statusObject)
                     } catch (e: JSONException) {
                         FLog.e(TAG, "SyncService-Error: the offending line: $line")
                         //FLog.e(TAG, "onHandleIntent: error reading json", e)
@@ -219,9 +221,11 @@ class SyncWorker (private var mContext: Context, workerParams: WorkerParameters)
             log("Sync: No Rclone Process!")
         }
         mNotificationManager.cancelSyncNotification(ongoingNotificationID)
+        TransferTracker.removeTransfer(ongoingNotificationID.toString())
     }
 
     private fun postSync() {
+        TransferTracker.removeTransfer(ongoingNotificationID.toString())
         if (endNotificationAlreadyPosted) {
             return
         }

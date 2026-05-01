@@ -95,6 +95,27 @@
             </com.google.android.material.card.MaterialCardView>
         </FrameLayout>
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/transfer_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            android:layout_marginBottom="4dp"
+            android:visibility="gone"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:id="@+id/transfer_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="4dp" />
+
+        </com.google.android.material.card.MaterialCardView>
+
         <de.felixnuesse.ui.BreadcrumbView
             android:id="@+id/breadcrumb_view"
             android:layout_width="match_parent"

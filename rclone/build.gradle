@@ -34,7 +34,7 @@ ext {
     CACHE_PATH = Paths.get(PROJECT_DIR, 'cache').toString()
     GOPATH = Paths.get(CACHE_PATH, 'gopath').toString()
     OUTPUT_BASE_PATH = Paths.get(PROJECT_DIR, '..', 'app', 'lib').toAbsolutePath().toString()
-    GO_BIN = '/usr/local/go/bin/go'
+    GO_BIN = 'go'
 }
 
 def findSdkDir() {

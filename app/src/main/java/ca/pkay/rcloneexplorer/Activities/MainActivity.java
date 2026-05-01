@@ -22,6 +22,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
 import android.view.View;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -31,6 +35,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -52,8 +59,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 import ca.pkay.rcloneexplorer.AppShortcutsHelper;
 import ca.pkay.rcloneexplorer.BuildConfig;
@@ -75,10 +84,13 @@ import ca.pkay.rcloneexplorer.RemoteConfig.RemoteConfigHelper;
 import ca.pkay.rcloneexplorer.RuntimeConfiguration;
 import ca.pkay.rcloneexplorer.Services.StreamingService;
 import ca.pkay.rcloneexplorer.Services.TriggerService;
+import ca.pkay.rcloneexplorer.notifications.support.StatusObject;
 import ca.pkay.rcloneexplorer.util.ActivityHelper;
 import ca.pkay.rcloneexplorer.util.FLog;
 import ca.pkay.rcloneexplorer.util.PermissionManager;
 import ca.pkay.rcloneexplorer.util.SharedPreferencesUtil;
+import ca.pkay.rcloneexplorer.util.TransferStatus;
+import ca.pkay.rcloneexplorer.util.TransferTracker;
 import de.felixnuesse.extract.updates.UpdateChecker;
 import es.dmoral.toasty.Toasty;
 import java9.util.stream.Stream;
@@ -99,6 +111,9 @@ public class MainActivity extends AppCompatActivity
     private static final int SETTINGS_CODE = 71; // code when coming back from settings
     private static final int WRITE_REQUEST_CODE = 81; // code when exporting config
     private final String FILE_EXPLORER_FRAGMENT_TAG = "ca.pkay.rcexplorer.MAIN_ACTIVITY_FILE_EXPLORER_TAG";
+    private static boolean isBiometricAuthenticated = false;
+    private boolean isBiometricPromptShowing = false;
+    private boolean isActivityResumed = false;
     private NavigationView navigationView;
     private DrawerLayout drawer;
     private Rclone rclone;
@@ -114,18 +129,25 @@ public class MainActivity extends AppCompatActivity
         ActivityHelper.applyTheme(this);
 
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
         boolean allPermissionsGranted = (new PermissionManager(this)).hasAllRequiredPermissions();
         boolean completedIntroOnce = OnboardingActivity.Companion.completedIntro(this);
         if(!allPermissionsGranted || !completedIntroOnce) {
             startActivity(new Intent(this, OnboardingActivity.class));
             finish();
+            return;
         }
-
 
         context = this;
         drawerPinnedRemoteIds = new HashMap<>();
         availableDrawerPinnedRemoteId = 2;
         setContentView(R.layout.activity_main);
+
+        boolean useBiometric = sharedPreferences.getBoolean(getString(R.string.pref_key_biometric_lock), false);
+        if (useBiometric && !isBiometricAuthenticated) {
+            findViewById(R.id.locked_config).setVisibility(View.VISIBLE);
+        }
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         ActionBar actionbar = getSupportActionBar();
@@ -139,8 +161,6 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
 
         rclone = new Rclone(this);
-
-        findViewById(R.id.locked_config_btn).setOnClickListener(v -> askForConfigPassword());
 
         Intent intent = getIntent();
         Bundle bundle = intent.getExtras();
@@ -163,7 +183,9 @@ public class MainActivity extends AppCompatActivity
             editor.putString(getString(R.string.pref_key_version_name), currentVersionName);
             editor.apply();
         } else if (rclone.isConfigEncrypted()) {
-            askForConfigPassword();
+            if (!useBiometric || isBiometricAuthenticated) {
+                askForConfigPassword();
+            }
         } else if (savedInstanceState != null) {
             fragment = getSupportFragmentManager().findFragmentByTag(FILE_EXPLORER_FRAGMENT_TAG);
             if (fragment instanceof FileExplorerFragment) {
@@ -217,15 +239,91 @@ public class MainActivity extends AppCompatActivity
         triggerService.queueTrigger();
 
         (new UpdateChecker(this)).schedule();
+
+        setupTransferObserver();
+    }
+
+    private void setupTransferObserver() {
+        try {
+            View transferPanel = findViewById(R.id.transfer_panel);
+            LinearLayout transferList = findViewById(R.id.transfer_list);
+            if (transferPanel == null || transferList == null) return;
+
+            TransferTracker.INSTANCE.getOngoingTransfers().observe(this, transfers -> {
+                try {
+                    if (transfers == null || transfers.isEmpty()) {
+                        transferPanel.setVisibility(View.GONE);
+                        return;
+                    }
+
+                    transferPanel.setVisibility(View.VISIBLE);
+                    transferList.removeAllViews();
+
+                    // Limit to 3 lines/tasks if needed, or just show all
+                    int count = 0;
+                    for (Map.Entry<String, TransferStatus> entry : transfers.entrySet()) {
+                        if (count >= 3) break; // Showing only up to 3 for now as requested "3 lines"
+                        TransferStatus transfer = entry.getValue();
+                        if (transfer == null) continue;
+                        StatusObject status = transfer.getStatus();
+                        if (status == null) continue;
+
+                        View itemView = getLayoutInflater().inflate(R.layout.transfer_item, transferList, false);
+                        
+                        TextView title = itemView.findViewById(R.id.transfer_title);
+                        TextView stats = itemView.findViewById(R.id.transfer_stats);
+                        TextView speed = itemView.findViewById(R.id.transfer_speed);
+                        ProgressBar progress = itemView.findViewById(R.id.transfer_progress);
+
+                        if (title != null) title.setText(transfer.getTitle());
+                        String content = status.notificationContent;
+                        if (content == null || content.isEmpty()) {
+                            content = getString(R.string.please_wait);
+                        }
+                        if (stats != null) stats.setText(content);
+                        if (speed != null) speed.setText(status.getSpeed());
+                        if (progress != null) progress.setProgress(status.notificationPercent);
+
+                        transferList.addView(itemView);
+                        count++;
+                    }
+                } catch (Exception e) {
+                    FLog.e(TAG, "setupTransferObserver: observer error", e);
+                }
+            });
+        } catch (Exception e) {
+            FLog.e(TAG, "setupTransferObserver: error", e);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         updatePermissionFragmentVisibility();
+
         if(MAIN_ACTIVITY_START_LOG.equals(getIntent().getAction())){
             startLogFragment();
             navigationView.setCheckedItem(R.id.nav_logs);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        isActivityResumed = false;
+    }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        isActivityResumed = true;
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        boolean useBiometric = sharedPreferences.getBoolean(getString(R.string.pref_key_biometric_lock), false);
+        if (useBiometric && !isBiometricAuthenticated) {
+            View lockedConfig = findViewById(R.id.locked_config);
+            if (lockedConfig != null) {
+                lockedConfig.postDelayed(this::showBiometricPrompt, 100);
+            }
         }
     }
 
@@ -526,8 +624,101 @@ public class MainActivity extends AppCompatActivity
         builder.show();
     }
 
+    private void showBiometricPrompt() {
+        if (!isActivityResumed || isFinishing() || isDestroyed() || isBiometricPromptShowing) return;
+        
+        try {
+            BiometricManager biometricManager = BiometricManager.from(this);
+            int authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+            int canAuthenticate = biometricManager.canAuthenticate(authenticators);
+            if (canAuthenticate != BiometricManager.BIOMETRIC_SUCCESS) {
+                if (canAuthenticate != BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED) {
+                    isBiometricAuthenticated = true;
+                    View lockedConfig = findViewById(R.id.locked_config);
+                    if (lockedConfig != null) {
+                        lockedConfig.setVisibility(View.GONE);
+                    }
+                    return;
+                }
+            }
+
+            isBiometricPromptShowing = true;
+            View lockedConfig = findViewById(R.id.locked_config);
+            if (lockedConfig != null) {
+                lockedConfig.setVisibility(View.VISIBLE);
+            }
+            
+            TextView message = findViewById(R.id.locked_config_message);
+            if (message != null) {
+                message.setText(R.string.biometric_prompt_description);
+            }
+            
+            Button btn = findViewById(R.id.locked_config_btn);
+            if (btn != null) {
+                btn.setText(R.string.press_to_unlock);
+                btn.setOnClickListener(v -> showBiometricPrompt());
+            }
+
+            Executor executor = ContextCompat.getMainExecutor(this);
+            BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this,
+                    executor, new BiometricPrompt.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                    super.onAuthenticationError(errorCode, errString);
+                    isBiometricPromptShowing = false;
+                    if (errorCode != BiometricPrompt.ERROR_USER_CANCELED && errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON && isActivityResumed) {
+                        try {
+                            Toasty.error(MainActivity.this, getString(R.string.biometric_error) + ": " + errString, Toast.LENGTH_SHORT).show();
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                @Override
+                public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                    super.onAuthenticationSucceeded(result);
+                    isBiometricAuthenticated = true;
+                    isBiometricPromptShowing = false;
+                    View lockedConfig = findViewById(R.id.locked_config);
+                    if (lockedConfig != null) {
+                        lockedConfig.setVisibility(View.GONE);
+                    }
+                    if (rclone != null && rclone.isConfigEncrypted() && isActivityResumed) {
+                        askForConfigPassword();
+                    }
+                }
+
+                @Override
+                public void onAuthenticationFailed() {
+                    super.onAuthenticationFailed();
+                }
+            });
+
+            BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(getString(R.string.biometric_prompt_title))
+                    .setSubtitle(getString(R.string.biometric_prompt_subtitle))
+                    .setDescription(getString(R.string.biometric_prompt_description))
+                    .setAllowedAuthenticators(authenticators)
+                    .build();
+
+            biometricPrompt.authenticate(promptInfo);
+        } catch (Exception e) {
+            FLog.e(TAG, "showBiometricPrompt: error", e);
+            isBiometricAuthenticated = true;
+            isBiometricPromptShowing = false;
+            View lockedConfig = findViewById(R.id.locked_config);
+            if (lockedConfig != null) {
+                lockedConfig.setVisibility(View.GONE);
+            }
+        }
+    }
+
     private void askForConfigPassword() {
+        if (!isActivityResumed || isFinishing() || isDestroyed()) return;
+
         findViewById(R.id.locked_config).setVisibility(View.VISIBLE);
+        ((android.widget.TextView)findViewById(R.id.locked_config_message)).setText(R.string.configuration_is_password_protected);
+        ((android.widget.Button)findViewById(R.id.locked_config_btn)).setText(R.string.press_to_unlock);
+        findViewById(R.id.locked_config_btn).setOnClickListener(v -> askForConfigPassword());
         new InputDialog()
                 .setTitle(R.string.config_password_protected)
                 .setMessage(R.string.please_enter_password)

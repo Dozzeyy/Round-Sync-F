@@ -17,7 +17,7 @@ android {
         minSdkVersion 23
         compileSdk 35
         targetSdkVersion 35
-        versionCode 10 // last digit is reserved for ABI, only ever end on 0!
+        versionCode 1000 // last digit is reserved for ABI, only ever end on 0!
         versionName '1.0.0'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "java.lang.String", "CLI", System.getenv('RCX_BUILD_CLI') ? System.getenv('RCX_BUILD_CLI') : "\"c03129b6-b09f-9cb4-8fcd-7f143b8f94ef\""
@@ -170,6 +170,7 @@ dependencies {
 
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.preference:preference-ktx:1.2.1'
+    implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'androidx.datastore:datastore-preferences:1.1.0'
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
