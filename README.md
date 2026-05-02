@@ -23,6 +23,7 @@ This project is fork of Round Sync App available on https://github.com/newhinton
   </tr>
 </table>
 
+[Get APK From Telegram](https://t.me/openapps_FOSS/3)
 
 ## Features
 
